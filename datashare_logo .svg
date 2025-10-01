@@ -1,0 +1,143 @@
+<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dégradés -->
+  <defs>
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    
+    <radialGradient id="glowGradient">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
+    </radialGradient>
+    
+    <!-- Filtre d'ombre -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.5"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Cercles de fond -->
+  <circle cx="150" cy="120" r="95" fill="none" stroke="url(#mainGradient)" stroke-width="1" opacity="0.12"/>
+  <circle cx="150" cy="120" r="75" fill="none" stroke="url(#accentGradient)" stroke-width="1" opacity="0.15"/>
+  
+  <!-- ORDINATEUR GAUCHE (nœud) -->
+  <g filter="url(#shadow)">
+    <!-- Écran -->
+    <rect x="60" y="100" width="40" height="30" rx="2" fill="url(#mainGradient)"/>
+    <rect x="63" y="103" width="34" height="24" rx="1" fill="#ffffff" opacity="0.25"/>
+    <!-- Icône de fichier sur écran -->
+    <rect x="72" y="109" width="10" height="12" rx="0.5" fill="#ffffff" opacity="0.9"/>
+    <path d="M 80 109 L 80 113 L 82 113 Z" fill="#ffffff" opacity="0.9"/>
+    <!-- Base/pied -->
+    <rect x="75" y="130" width="10" height="3" rx="0.5" fill="url(#mainGradient)"/>
+    <rect x="70" y="133" width="20" height="2" rx="1" fill="url(#mainGradient)"/>
+    <!-- Point central (nœud réseau) -->
+    <circle cx="80" cy="115" r="5" fill="#ffffff" opacity="0.9"/>
+  </g>
+  
+  <!-- ORDINATEUR HAUT (nœud) -->
+  <g filter="url(#shadow)">
+    <!-- Écran -->
+    <rect x="130" y="45" width="40" height="30" rx="2" fill="url(#accentGradient)"/>
+    <rect x="133" y="48" width="34" height="24" rx="1" fill="#ffffff" opacity="0.25"/>
+    <!-- Icône de fichier sur écran -->
+    <rect x="142" y="54" width="10" height="12" rx="0.5" fill="#ffffff" opacity="0.9"/>
+    <path d="M 150 54 L 150 58 L 152 58 Z" fill="#ffffff" opacity="0.9"/>
+    <!-- Base/pied -->
+    <rect x="145" y="75" width="10" height="3" rx="0.5" fill="url(#accentGradient)"/>
+    <rect x="140" y="78" width="20" height="2" rx="1" fill="url(#accentGradient)"/>
+    <!-- Point central (nœud réseau) -->
+    <circle cx="150" cy="60" r="5" fill="#ffffff" opacity="0.9"/>
+  </g>
+  
+  <!-- ORDINATEUR DROITE (nœud) -->
+  <g filter="url(#shadow)">
+    <!-- Écran -->
+    <rect x="200" y="100" width="40" height="30" rx="2" fill="url(#accentGradient)"/>
+    <rect x="203" y="103" width="34" height="24" rx="1" fill="#ffffff" opacity="0.25"/>
+    <!-- Icône de fichier sur écran -->
+    <rect x="212" y="109" width="10" height="12" rx="0.5" fill="#ffffff" opacity="0.9"/>
+    <path d="M 220 109 L 220 113 L 222 113 Z" fill="#ffffff" opacity="0.9"/>
+    <!-- Base/pied -->
+    <rect x="215" y="130" width="10" height="3" rx="0.5" fill="url(#accentGradient)"/>
+    <rect x="210" y="133" width="20" height="2" rx="1" fill="url(#accentGradient)"/>
+    <!-- Point central (nœud réseau) -->
+    <circle cx="220" cy="115" r="5" fill="#ffffff" opacity="0.9"/>
+  </g>
+  
+  <!-- ORDINATEUR BAS (nœud) -->
+  <g filter="url(#shadow)">
+    <!-- Écran -->
+    <rect x="130" y="155" width="40" height="30" rx="2" fill="url(#mainGradient)"/>
+    <rect x="133" y="158" width="34" height="24" rx="1" fill="#ffffff" opacity="0.25"/>
+    <!-- Icône de fichier sur écran -->
+    <rect x="142" y="164" width="10" height="12" rx="0.5" fill="#ffffff" opacity="0.9"/>
+    <path d="M 150 164 L 150 168 L 152 168 Z" fill="#ffffff" opacity="0.9"/>
+    <!-- Base/pied -->
+    <rect x="145" y="185" width="10" height="3" rx="0.5" fill="url(#mainGradient)"/>
+    <rect x="140" y="188" width="20" height="2" rx="1" fill="url(#mainGradient)"/>
+    <!-- Point central (nœud réseau) -->
+    <circle cx="150" cy="170" r="5" fill="#ffffff" opacity="0.9"/>
+  </g>
+  
+  <!-- NŒUD CENTRAL (hub de partage) -->
+  <g filter="url(#shadow)">
+    <circle cx="150" cy="120" r="16" fill="url(#mainGradient)"/>
+    <circle cx="150" cy="120" r="16" fill="url(#glowGradient)" opacity="0.4"/>
+    <circle cx="150" cy="120" r="7" fill="#ffffff" opacity="0.95"/>
+  </g>
+  
+  <!-- FLÈCHES DE TRANSFERT MULTIDIRECTIONNEL -->
+  <g opacity="0.9">
+    <!-- Haut vers centre -->
+    <path d="M 150 80 L 150 104" stroke="url(#mainGradient)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M 150 104 L 146 98 M 150 104 L 154 98" stroke="url(#mainGradient)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Centre vers bas -->
+    <path d="M 150 136 L 150 155" stroke="url(#accentGradient)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M 150 155 L 146 149 M 150 155 L 154 149" stroke="url(#accentGradient)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Gauche vers centre -->
+    <path d="M 100 115 L 134 120" stroke="url(#mainGradient)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M 134 120 L 128 116 M 134 120 L 128 124" stroke="url(#mainGradient)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Centre vers droite -->
+    <path d="M 166 120 L 200 115" stroke="url(#accentGradient)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M 200 115 L 194 111 M 200 115 L 194 119" stroke="url(#accentGradient)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Flèches de retour (bidirectionnel) -->
+  <g opacity="0.6">
+    <path d="M 150 104 L 150 80" stroke="url(#accentGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="2,2"/>
+    <path d="M 150 155 L 150 136" stroke="url(#mainGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="2,2"/>
+    <path d="M 134 120 L 100 115" stroke="url(#accentGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="2,2"/>
+    <path d="M 200 115 L 166 120" stroke="url(#mainGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="2,2"/>
+  </g>
+  
+  <!-- Particules de données en mouvement -->
+  <circle cx="150" cy="92" r="2.5" fill="url(#mainGradient)" opacity="0.7"/>
+  <circle cx="150" cy="145" r="2.5" fill="url(#accentGradient)" opacity="0.7"/>
+  <circle cx="117" cy="117" r="2.5" fill="url(#mainGradient)" opacity="0.7"/>
+  <circle cx="183" cy="117" r="2.5" fill="url(#accentGradient)" opacity="0.7"/>
+  
+  <!-- Texte -->
+  <text x="150" y="235" font-family="'Arial', sans-serif" font-size="32" font-weight="700" fill="url(#mainGradient)" text-anchor="middle" letter-spacing="0.5">DataShare</text>
+  
+  <!-- Slogan -->
+  <text x="150" y="255" font-family="'Arial', sans-serif" font-size="11" font-weight="500" fill="#64748b" text-anchor="middle" letter-spacing="1.2">FAST &amp; SECURE FILE TRANSFER</text>
+</svg>
