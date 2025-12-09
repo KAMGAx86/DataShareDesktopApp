@@ -166,6 +166,10 @@ class ReceiveJob:
     
     # Crypto
     session_key: Optional[bytes] = None
+    
+    # Security
+    approval_event: threading.Event = field(default_factory=threading.Event)
+    is_accepted: bool = False
 
 
 @dataclass
@@ -491,9 +495,12 @@ class FileReceiver:
     Synchronisé parfaitement avec FileTransferManager (send.py).
     """
     
-    def __init__(self, port: int = TRANSFER_PORT, auto_accept: bool = True):
+    def __init__(self, port: int = TRANSFER_PORT, auto_accept: bool = True,
+                 enable_pin: bool = False, pin_code: str = "0000"):
         self.port = port
         self.auto_accept = auto_accept
+        self.enable_pin = enable_pin
+        self.pin_code = pin_code
         
         self.server_socket: Optional[socket.socket] = None
         self.server_thread: Optional[threading.Thread] = None
@@ -596,8 +603,18 @@ class FileReceiver:
         
         try:
             # Recevoir handshake
-            transfer_id, mode, session_key = self._receive_handshake(sock)
+            transfer_id, mode, session_key, received_pin = self._receive_handshake(sock)
             
+            # Authentification PIN
+            if self.enable_pin:
+                if received_pin != self.pin_code:
+                    logger.warning(f"⛔ PIN incorrect pour {addr[0]} (Reçu: '{received_pin}', Attendu: '****')")
+                    try:
+                        self._send_binary_message(sock, MessageType.ERROR, b"PIN_INVALID")
+                    except:
+                        pass
+                    return
+
             mode_str = {
                 TransferMode.TURBO: "TURBO",
                 TransferMode.ENCRYPTED: "CHIFFRÉ",
@@ -610,6 +627,8 @@ class FileReceiver:
             logger.info(f"  ID: {transfer_id}")
             logger.info(f"  Mode: {mode_str}")
             logger.info(f"  De: {addr[0]}")
+            if self.enable_pin:
+                logger.info(f"  Auth: PIN OK")
             logger.info(f"═══════════════════════════════════════════════════\n")
             
             # Créer job
@@ -621,13 +640,38 @@ class FileReceiver:
                 total_size=0,
                 destination_folder=str(self.default_download_folder),
                 mode=mode,
-                status=TransferStatus.TRANSFERRING,
+                status=TransferStatus.PENDING, # Status PENDING par défaut
                 session_key=session_key,
-                started_at=time.time()
+                started_at=time.time(),
+                approval_event=threading.Event() # Event pour attendre l'approbation
             )
             
             with self.receive_lock:
                 self.active_receives[transfer_id] = receive_job
+            
+            # Notifier demande de transfert
+            if self.on_transfer_request:
+                # Note: On doit espérer que le sender envoie la liste des fichiers DANS le header ou juste après.
+                # Dans le protocole actuel, les fichiers sont envoyés un par un. 
+                # Le sender commence direct à envoyer FILE_HEADER du premier fichier.
+                # On ne peut pas savoir TOUT de suite la taille totale exacte sans changer le protocole send.py.
+                # Mais c'est pas grave, on demande l'accord global.
+                
+                # Petite astuce: on attend le premier message pour avoir au moins un fichier ou une info?
+                # Non, on notifie dès la connexion pour accepter "la session".
+                self.on_transfer_request(receive_job)
+            
+            # Attendre approbation (si auto_accept est False)
+            if not self.auto_accept:
+                logger.info(f"⏳ En attente d'approbation pour {transfer_id}...")
+                received_approval = receive_job.approval_event.wait(timeout=60) # Timeout 60s
+                
+                if not received_approval or not receive_job.is_accepted:
+                    logger.warning(f"⛔ Transfert {transfer_id} refusé ou expiré.")
+                    return # Couper la connexion
+            
+            # Mise à jour du status
+            receive_job.status = TransferStatus.TRANSFERRING
             
             # Créer cipher si besoin
             cipher = None
@@ -680,27 +724,56 @@ class FileReceiver:
                     if transfer_id in self.active_receives:
                         del self.active_receives[transfer_id]
     
-    def _receive_handshake(self, sock: socket.socket) -> Tuple[str, TransferMode, Optional[bytes]]:
-        """Reçoit handshake binaire"""
+    def accept_transfer(self, transfer_id: str):
+        """Accepte un transfert en attente"""
+        with self.receive_lock:
+            job = self.active_receives.get(transfer_id)
+            if job and job.status == TransferStatus.PENDING:
+                job.is_accepted = True
+                job.approval_event.set()
+                logger.info(f"Transfert {transfer_id} accepté manuellement.")
+
+    def reject_transfer(self, transfer_id: str):
+        """Refuse un transfert"""
+        with self.receive_lock:
+            job = self.active_receives.get(transfer_id)
+            if job:
+                job.is_accepted = False
+                job.approval_event.set()
+                logger.info(f"Transfert {transfer_id} refusé manuellement.")
+
+    def _receive_handshake(self, sock: socket.socket) -> Tuple[str, TransferMode, Optional[bytes], str]:
+        """Reçoit handshake binaire (v7.0)"""
         
-        # Format: [magic:4][version:1][mode:1][key_len:1][key][id:16]
-        handshake_data = self._recv_exact(sock, 7)
+        # Format v7: [magic:4][version:1][mode:1][key_len:1][pin_len:1][key][pin][id:16]
+        # On va lire 8 bytes (4+1+1+1+1)
+        handshake_data = self._recv_exact(sock, 8)
         
-        magic, version, mode, key_len = struct.unpack('!4sBBB', handshake_data)
+        magic, version, mode, key_len, pin_len = struct.unpack('!4sBBBB', handshake_data)
         
         if magic != b'DSHR':
             raise ValueError(f"Magic number invalide: {magic}")
+            
+        # Compatibilité ascendante basique (si version < 0x07, ça va planter au unpack ci-dessus car size diff)
+        # TODO: Pour supporter v6 et v7, il faudrait lire 7 bytes, vérifier version, et si v7 lire 1 byte de plus.
+        # Mais le plan dit "Breaking Changes", donc on assume v7 only.
         
         # Clé si présente
         session_key = None
         if key_len > 0:
             session_key = self._recv_exact(sock, key_len)
+            
+        # PIN si présent
+        pin = ""
+        if pin_len > 0:
+            pin_bytes = self._recv_exact(sock, pin_len)
+            pin = pin_bytes.decode('utf-8')
         
         # Transfer ID
         transfer_id_bytes = self._recv_exact(sock, 16)
         transfer_id = transfer_id_bytes.rstrip(b'\x00').decode('utf-8')
         
-        return transfer_id, TransferMode(mode), session_key
+        return transfer_id, TransferMode(mode), session_key, pin
     
     def _receive_transfer(self, sock: socket.socket, receive_job: ReceiveJob,
                           cipher: Optional[StreamCipher], stats: ReceiveStats):
@@ -749,11 +822,22 @@ class FileReceiver:
                     receive_job.files.append(current_file_meta)
                     receive_job.total_size += current_file_meta.size
                     
-                    # Créer chemin
+                    # Créer chemin SÉCURISÉ (Fix Path Traversal)
+                    safe_filename = os.path.basename(current_file_meta.name)
+                    
+                    # Sanitize relative path if present
                     if current_file_meta.relative_path:
-                        dest_path = self.default_download_folder / current_file_meta.relative_path
+                        # Normalize and strip ..
+                        rel = os.path.normpath(current_file_meta.relative_path)
+                        if rel.startswith("..") or os.path.isabs(rel) or ".." in rel.split(os.sep):
+                            # Suspicious path -> flatten
+                            logger.warning(f"Chemin suspect détecté ({current_file_meta.relative_path}), aplatissement.")
+                            dest_path = self.default_download_folder / safe_filename
+                        else:
+                            # Safe relative path
+                             dest_path = self.default_download_folder / rel
                     else:
-                        dest_path = self.default_download_folder / current_file_meta.name
+                        dest_path = self.default_download_folder / safe_filename
                     
                     dest_path.parent.mkdir(parents=True, exist_ok=True)
                     

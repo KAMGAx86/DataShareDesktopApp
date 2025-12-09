@@ -1,0 +1,5 @@
+flet>=0.21.0
+cryptography>=41.0.0
+lz4>=4.3.0
+requests>=2.31.0
+plyer>=2.1.0

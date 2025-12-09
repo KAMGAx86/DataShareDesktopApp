@@ -70,6 +70,8 @@ class SecuritySettings:
     quarantine_unknown_files: bool = False
     max_file_size: int = 1073741824  # 1GB
     blocked_extensions: List[str] = field(default_factory=lambda: ['.exe', '.scr', '.bat'])
+    enable_pin: bool = False
+    pin_code: str = "0000"
 
 @dataclass
 class InterfaceSettings:

@@ -158,6 +158,7 @@ class DataShareCore:
             port=self.settings.network_settings.transfer_port
         )
         self._setup_transfer_callbacks()
+        self._configure_security()
         
         # ═══════════════════════════════════════════════════════════
         # 7. Explorateur stockage (INCHANGÉ)
@@ -181,6 +182,13 @@ class DataShareCore:
         logger.info(f"Wi-Fi Direct: {'✓ Disponible' if self.wifi_direct else '✗ Non disponible'}")
         logger.info(f"Transferts: v6.0 (920+ MB/s en mode turbo)")
         logger.info("=" * 60)
+
+    def _configure_security(self):
+        """Configure les paramètres de sécurité du gestionnaire de transfert."""
+        self.transfer_manager.configure_security(
+            enable_pin=self.settings.security_settings.enable_pin,
+            pin_code=self.settings.security_settings.pin_code
+        )
     
     def _setup_transfer_callbacks(self):
         """
@@ -192,7 +200,7 @@ class DataShareCore:
         self.transfer_manager.on_transfer_complete = self._handle_transfer_complete
         self.transfer_manager.on_file_received = self._handle_file_received
     
-    def _handle_transfer_request(self, transfer_job: UnifiedTransferJob, socket):
+    def _handle_transfer_request(self, transfer_job: UnifiedTransferJob):
         """
         Gère une demande de transfert entrante.
         INCHANGÉ - même logique, compatibilité assurée.
@@ -566,7 +574,7 @@ class DataShareCore:
         )
         monitoring_thread.start()
     
-    def send_files_to_device(self, device_ip: str, file_paths: List[str]) -> Optional[str]:
+    def send_files_to_device(self, device_ip: str, file_paths: List[str], pin: str = "") -> Optional[str]:
         """
         Envoie des fichiers vers un appareil.
         AMÉLIORÉ - Mode turbo auto-détecté pour réseaux locaux.
@@ -581,7 +589,8 @@ class DataShareCore:
                 target_ip=device_ip,
                 files_and_folders=file_paths,
                 sender_name=self.settings.user_profile.username,
-                turbo_mode=is_local  # Mode turbo auto pour LAN
+                turbo_mode=is_local,  # Mode turbo auto pour LAN
+                pin=pin
             )
             
             device_name = self._get_device_name_by_ip(device_ip)
@@ -694,14 +703,23 @@ class DataShareCore:
         }
     
     def update_user_profile(self, username: str = None, avatar_path: str = None):
-        """Met à jour le profil utilisateur. INCHANGÉ."""
+        """Met à jour le profil utilisateur."""
         if username:
             self.settings.user_profile.username = username
         if avatar_path:
             self.settings.user_profile.avatar_path = avatar_path
         
         self.settings.save_settings()
+        self._configure_security()
         logger.info("Profil utilisateur mis à jour")
+        
+    def update_security_settings(self, enable_pin: bool, pin_code: str):
+        """Met à jour les paramètres de sécurité."""
+        self.settings.security_settings.enable_pin = enable_pin
+        self.settings.security_settings.pin_code = pin_code
+        self.settings.save_settings()
+        self._configure_security()
+        logger.info("Paramètres de sécurité mis à jour")
     
     def add_trusted_device(self, device_ip: str, trust_level: str = "trusted", 
                           auto_accept: bool = False) -> bool:

@@ -200,11 +200,11 @@ class DataShareFileTransfer:
     # HANDLERS INTERNES - Réception
     # ══════════════════════════════════════════════════════════════════════════
     
-    def _handle_receive_request(self, receive_job: ReceiveJob, socket):
+    def _handle_receive_request(self, receive_job: ReceiveJob):
         """Gère une demande de réception"""
         if self._unified_callbacks['on_transfer_request']:
             unified_job = UnifiedTransferJob(receive_job, 'received')
-            self._unified_callbacks['on_transfer_request'](unified_job, socket)
+            self._unified_callbacks['on_transfer_request'](unified_job)
     
     def _handle_receive_progress(self, receive_job: ReceiveJob):
         """Gère la progression d'une réception"""
@@ -328,9 +328,10 @@ class DataShareFileTransfer:
     def send_files(self, 
                    target_ip: str, 
                    files_and_folders: List[str], 
-                   sender_name: str = "DataShare User",
-                   turbo_mode: bool = False,
-                   enable_compression: bool = False) -> str:
+             sender_name: str = "DataShare User",
+             turbo_mode: bool = False,
+             enable_compression: bool = False,
+             pin: str = "") -> str:
         """
         Envoie des fichiers vers un destinataire.
         
@@ -340,6 +341,7 @@ class DataShareFileTransfer:
             sender_name: Nom de l'expéditeur
             turbo_mode: Activer mode turbo (sans chiffrement, max vitesse)
             enable_compression: Activer compression LZ4
+            pin: Code PIN pour authentification (optionnel)
             
         Returns:
             str: ID unique du transfert
@@ -349,7 +351,8 @@ class DataShareFileTransfer:
             ...     target_ip='192.168.1.10',
             ...     files_and_folders=['/home/user/video.mkv'],
             ...     sender_name='Alice',
-            ...     turbo_mode=True
+            ...     turbo_mode=True,
+            ...     pin='1234'
             ... )
         """
         return self.sender.send_files(
@@ -357,7 +360,8 @@ class DataShareFileTransfer:
             files_and_folders=files_and_folders,
             sender_name=sender_name,
             turbo_mode=turbo_mode,
-            enable_compression=enable_compression
+            enable_compression=enable_compression,
+            pin=pin
         )
     
     # ══════════════════════════════════════════════════════════════════════════
@@ -375,9 +379,11 @@ class DataShareFileTransfer:
         Returns:
             bool: Succès de l'opération
         """
-        # Le module receive.py gère déjà l'acceptation automatique
-        # Cette méthode est gardée pour compatibilité API
         logger.info(f"Acceptation transfert {transfer_id[:8]} vers {destination_folder}")
+        # Note: on pourrait transmettre destination_folder au receiver si supporté,
+        # mais receive.py utilise actuellement self.default_download_folder ou le path du job.
+        # Pour l'instant on accepte simplement.
+        self.receiver.accept_transfer(transfer_id)
         return True
     
     def reject_transfer(self, transfer_id: str, reason: str = "Refusé") -> bool:
@@ -392,7 +398,8 @@ class DataShareFileTransfer:
             bool: Succès de l'opération
         """
         logger.info(f"Rejet transfert {transfer_id[:8]}: {reason}")
-        return self.receiver.cancel_receive(transfer_id)
+        self.receiver.reject_transfer(transfer_id)
+        return True
     
     # ══════════════════════════════════════════════════════════════════════════
     # MÉTHODES PUBLIQUES - Contrôle des transferts
@@ -532,6 +539,18 @@ class DataShareFileTransfer:
         logger.info(f"Auto-accept {'activé' if enabled else 'désactivé'}")
         if destination_folder:
             logger.info(f"  Dossier par défaut: {destination_folder}")
+
+    def configure_security(self, enable_pin: bool, pin_code: str):
+        """
+        Configure les paramètres de sécurité.
+        
+        Args:
+            enable_pin: Activer la vérification PIN
+            pin_code: Le code PIN attendu
+        """
+        self.receiver.enable_pin = enable_pin
+        self.receiver.pin_code = pin_code
+        logger.info(f"Sécurité PIN configurée: {'Activé' if enable_pin else 'Désactivé'}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

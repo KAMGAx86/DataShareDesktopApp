@@ -171,6 +171,9 @@ class TransferJob:
     
     # Crypto
     session_key: Optional[bytes] = None
+    
+    # Auth
+    pin: str = ""
 
 
 @dataclass
@@ -373,7 +376,8 @@ class FileTransferManager:
     def send_files(self, target_ip: str, files_and_folders: List[str],
                    sender_name: str = "DataShare",
                    turbo_mode: bool = False,
-                   enable_compression: bool = False) -> str:
+                   enable_compression: bool = False,
+                   pin: str = "") -> str:
         """
         Envoie des fichiers vers une destination.
         
@@ -383,6 +387,7 @@ class FileTransferManager:
             sender_name: Nom de l'expéditeur
             turbo_mode: Mode sans chiffrement (max vitesse)
             enable_compression: Activer compression LZ4
+            pin: Code PIN optionnel pour authentification (NOUVEAU v7.0)
             
         Returns:
             transfer_id: ID unique du transfert
@@ -401,6 +406,7 @@ class FileTransferManager:
         
         # Auto-détection mode turbo pour réseaux locaux
         if not turbo_mode and any(target_ip.startswith(net) for net in TRUSTED_NETWORKS):
+            # Si PIN présent, on peut garder turbo (le PIN est envoyé au handshake)
             turbo_mode = True
             logger.info(f"  🔥 MODE TURBO AUTO-ACTIVÉ (réseau local)")
         
@@ -445,6 +451,8 @@ class FileTransferManager:
             logger.info(f"  Taille totale: {self._format_size(total_size)}")
             logger.info(f"  Chunk size: {chunk_size // 1024 // 1024}MB")
             logger.info(f"  Vitesse attendue: {expected_speed}")
+            if pin:
+                logger.info(f"  🔒 PIN: {'*' * len(pin)}")
             logger.info(f"═══════════════════════════════════════════════════\n")
             
             # Créer job
@@ -456,7 +464,8 @@ class FileTransferManager:
                 total_size=total_size,
                 mode=mode,
                 chunk_size=chunk_size,
-                status=TransferStatus.PENDING
+                status=TransferStatus.PENDING,
+                pin=pin
             )
             
             # Générer clé si besoin
@@ -592,16 +601,28 @@ class FileTransferManager:
                     pass
     
     def _send_handshake(self, sock: socket.socket, transfer_job: TransferJob):
-        """Handshake binaire simplifié"""
+        """Handshake binaire simplifié avec PIN (v7.0)"""
         
-        # Format simple: [magic:4][version:1][mode:1][key_len:1][key][id:16]
+        # Format v7: [magic:4][version:1][mode:1][key_len:1][pin_len:1][key][pin][id:16]
         magic = b'DSHR'
-        version = 0x06
+        version = 0x07
         key_len = len(transfer_job.session_key) if transfer_job.session_key else 0
         
-        handshake = struct.pack('!4sBBB', magic, version, transfer_job.mode, key_len)
+        pin_bytes = transfer_job.pin.encode('utf-8')
+        pin_len = len(pin_bytes)
+        if pin_len > 255:
+            logger.warning("PIN trop long, tronqué à 255 bytes")
+            pin_bytes = pin_bytes[:255]
+            pin_len = 255
+            
+        handshake = struct.pack('!4sBBBB', magic, version, transfer_job.mode, key_len, pin_len)
+        
         if transfer_job.session_key:
             handshake += transfer_job.session_key
+            
+        if pin_len > 0:
+            handshake += pin_bytes
+            
         handshake += transfer_job.transfer_id.encode('utf-8')[:16].ljust(16, b'\x00')
         
         sock.sendall(handshake)
